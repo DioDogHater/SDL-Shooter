@@ -38,14 +38,20 @@ SDL_Texture* shotgunTexture;
 
 // Global variables
 unsigned int running = true;
-unsigned int animFrame = 0;
-unsigned int animState = 0;
-Uint32 lastFrame = 0;
 
 // Player variables
 typedef struct {
-	
+	float x;
+	float y;
+	float velX;
+	float velY;
+	double angle;
+	unsigned int animFrame;
+	unsigned int animState;
+	Uint32 lastFrame;
+	unsigned int sprint;
 } Player;
+Player player;
 
 int init(){
 	if(SDL_Init(SDL_INIT_VIDEO) < 0){
@@ -157,20 +163,20 @@ double angle_to(double ax, double ay, double bx, double by){return atan2((by-ay)
 double to_rad(double theta){return theta/180*PI;}
 double to_deg(double theta){return theta/PI*180;}
 
-void render(){
-	if(animState == 0){
+void renderPlayer(){
+	if(player.animState == 0){
 		SDL_Point size = getTextureSize(walkTexture);
 		SDL_Point scaledSize = {size.x/6*4,size.y*4};
-		renderTextureEx(walkTexture,&((SDL_Rect){SCREEN_W/2-scaledSize.x/2,SCREEN_H/2-scaledSize.y/2,scaledSize.x,scaledSize.y}),&((SDL_Rect){size.x/6*animFrame,0,size.x/6,size.y}),0.0,NULL,SDL_FLIP_NONE);
+		renderTextureEx(walkTexture,&((SDL_Rect){SCREEN_W/2-scaledSize.x/2,SCREEN_H/2-scaledSize.y/2,scaledSize.x,scaledSize.y}),&((SDL_Rect){size.x/6*player.animFrame,0,size.x/6,size.y}),0.0,NULL,SDL_FLIP_NONE);
 	}
 }
 
+void render(){
+	renderPlayer();
+}
+
 void update(){
-	if(SDL_GetTicks()-lastFrame > 100){
-		lastFrame = SDL_GetTicks();
-		animFrame++;
-		if(animFrame > 5){animFrame = 0;}
-	}
+	
 }
 
 void loadMedia(){
@@ -199,8 +205,6 @@ int main(int argv, char* args[]){
 			}if(event.type == SDL_KEYDOWN){
 				switch(event.key.keysym.sym){
 					case SDLK_w:
-						animFrame++;
-						if(animFrame > 5){animFrame = 0;}
 						break;
 				}
 			}
