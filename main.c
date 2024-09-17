@@ -39,13 +39,13 @@ typedef struct {
 // Assets
 Animation walkTexture = {"assets/player_walk_strip6.png",NULL,(SDL_Point){0,0},(SDL_Point){17.5,28.5},6,0};
 Animation runTexture = {"assets/player_run_strip6.png",NULL,(SDL_Point){0,0},(SDL_Point){45.0,43.5},6,0};
-Animation handgunTexture = {"assets/player_9mmhandgun.png",NULL,(SDL_Point){0,0},(SDL_Point){17.5,30.0},1,0};
+Animation handgunTexture = {"assets/player_9mmhandgun.png",NULL,(SDL_Point){0,0},(SDL_Point){25.5,30.0},1,0};
 Animation chainGunTexture = {"assets/player_chaingun.png",NULL,(SDL_Point){0,0},(SDL_Point){17.5,16.0},1,0};
 Animation chainGunShootTexture = {"assets/player_chaingun_shoot_strip2.png",NULL,(SDL_Point){0.0,0.0},(SDL_Point){17.5,15.0},2,0};
-Animation hkTexture = {"assets/player_hk_stand.png",NULL,(SDL_Point){0,0},(SDL_Point){17.5,28.5},1,0};
-Animation hkRecoilTexture = {"assets/player_hk_recoil.png",NULL,(SDL_Point){0,0},(SDL_Point){17.5,28.5},1,0};
+Animation hkTexture = {"assets/player_hk_stand.png",NULL,(SDL_Point){0,0},(SDL_Point){31.5,26.5},1,0};
+Animation hkRecoilTexture = {"assets/player_hk_recoil.png",NULL,(SDL_Point){0,0},(SDL_Point){31.5,26.5},1,0};
 Animation flamethrowerTexture = {"assets/player_flamethrower.png",NULL,(SDL_Point){0,0},(SDL_Point){17.5,28.5},1,0};
-Animation shotgunTexture = {"assets/player_pumgun_reload_strip5.png",NULL,(SDL_Point){0,0},(SDL_Point){17.5,28.5},5,0};
+Animation shotgunTexture = {"assets/player_pumgun_reload_strip5.png",NULL,(SDL_Point){0,0},(SDL_Point){31.5,28.5},5,0};
 Animation* animations[9] = {&walkTexture,&runTexture,&handgunTexture,&chainGunTexture,&chainGunShootTexture,&hkTexture,&hkRecoilTexture,&flamethrowerTexture,&shotgunTexture};
 
 // Global variables
@@ -278,6 +278,15 @@ int main(int argv, char* args[]){
 						break;
 					case SDLK_1:
 						if(player.animState == 2){changeAnimState(0);}else{changeAnimState(2);}
+						break;
+					case SDLK_2:
+						if(player.animState == 5 || player.animState == 6){changeAnimState(0);}else{changeAnimState(5);}
+						break;
+					case SDLK_3:
+						if(player.animState == 8){changeAnimState(0);}else{changeAnimState(8);}
+						break;
+					case SDLK_4:
+						if(player.animState == 3 || player.animState == 4){changeAnimState(0);}else{changeAnimState(3);}
 						break;
 				}
 			}if(event.type == SDL_KEYUP){
