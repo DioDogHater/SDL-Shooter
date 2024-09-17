@@ -24,17 +24,29 @@ SDL_Renderer* WindowRenderer;
 
 // Event handler
 SDL_Event event;
+const Uint8* keyboard;
 
-// Images
-SDL_Texture* walkTexture;
-SDL_Texture* runTexture;
-SDL_Texture* handgunTexture;
-SDL_Texture* chainGunTexture;
-SDL_Texture* chainGunShootTexture;
-SDL_Texture* hkTexture;
-SDL_Texture* hkRecoilTexture;
-SDL_Texture* flamethrowerTexture;
-SDL_Texture* shotgunTexture;
+// all structs
+typedef struct {
+	char* filePath;
+	SDL_Texture* texture;
+	SDL_Point textureSize;
+	SDL_Point center;
+	unsigned int frames;
+	unsigned int animFrame;
+} Animation;
+
+// Assets
+Animation walkTexture = {"assets/player_walk_strip6.png",NULL,(SDL_Point){0,0},(SDL_Point){17.5,28.5},6,0};
+Animation runTexture = {"assets/player_run_strip6.png",NULL,(SDL_Point){0,0},(SDL_Point){45.0,43.5},6,0};
+Animation handgunTexture = {"assets/player_9mmhandgun.png",NULL,(SDL_Point){0,0},(SDL_Point){17.5,30.0},1,0};
+Animation chainGunTexture = {"assets/player_chaingun.png",NULL,(SDL_Point){0,0},(SDL_Point){17.5,16.0},1,0};
+Animation chainGunShootTexture = {"assets/player_chaingun_shoot_strip2.png",NULL,(SDL_Point){0.0,0.0},(SDL_Point){17.5,15.0},2,0};
+Animation hkTexture = {"assets/player_hk_stand.png",NULL,(SDL_Point){0,0},(SDL_Point){17.5,28.5},1,0};
+Animation hkRecoilTexture = {"assets/player_hk_recoil.png",NULL,(SDL_Point){0,0},(SDL_Point){17.5,28.5},1,0};
+Animation flamethrowerTexture = {"assets/player_flamethrower.png",NULL,(SDL_Point){0,0},(SDL_Point){17.5,28.5},1,0};
+Animation shotgunTexture = {"assets/player_pumgun_reload_strip5.png",NULL,(SDL_Point){0,0},(SDL_Point){17.5,28.5},5,0};
+Animation* animations[9] = {&walkTexture,&runTexture,&handgunTexture,&chainGunTexture,&chainGunShootTexture,&hkTexture,&hkRecoilTexture,&flamethrowerTexture,&shotgunTexture};
 
 // Global variables
 unsigned int running = true;
@@ -46,13 +58,13 @@ typedef struct {
 	float velX;
 	float velY;
 	double angle;
-	unsigned int animFrame;
 	unsigned int animState;
 	Uint32 lastFrame;
 	unsigned int sprint;
 } Player;
-Player player;
+Player player = {400,400,0.0,0.0,0.0,1,0,true};
 
+// initialize all SDL variables
 int init(){
 	if(SDL_Init(SDL_INIT_VIDEO) < 0){
 		printf("SDL init error: %s\n",SDL_GetError());
@@ -76,28 +88,16 @@ int init(){
 			WindowSurface = SDL_GetWindowSurface(Window);
 		}
 	}
+	keyboard = SDL_GetKeyboardState(NULL);
 	return true;
 }
 
+// function called when window closed
 void quit(){
-	SDL_DestroyTexture(walkTexture);
-	SDL_DestroyTexture(runTexture);
-	SDL_DestroyTexture(handgunTexture);
-	SDL_DestroyTexture(chainGunTexture);
-	SDL_DestroyTexture(chainGunShootTexture);
-	SDL_DestroyTexture(hkTexture);
-	SDL_DestroyTexture(hkRecoilTexture);
-	SDL_DestroyTexture(flamethrowerTexture);
-	SDL_DestroyTexture(shotgunTexture);
-	walkTexture = NULL;
-	runTexture = NULL;
-	handgunTexture = NULL;
-	chainGunTexture = NULL;
-	chainGunShootTexture = NULL;
-	hkTexture = NULL;
-	hkRecoilTexture = NULL;
-	flamethrowerTexture = NULL;
-	shotgunTexture = NULL;
+	for(int i = 0; i < sizeof(animations)/sizeof(Animation*); i++){
+		SDL_DestroyTexture(animations[i]->texture);
+		animations[i]->texture = NULL;
+	}
 	
 	SDL_DestroyRenderer(WindowRenderer);
 	SDL_DestroyWindow(Window);
@@ -107,16 +107,18 @@ void quit(){
 	SDL_Quit();
 }
 
+// Renderer geometry functions
 void renderColor(Uint8 r, Uint8 g, Uint8 b, Uint8 a){SDL_SetRenderDrawColor(WindowRenderer,r,g,b,a);}
 void fillRect(int x, int y, int w, int h){
-	SDL_Rect rectToFill; rectToFill.x = x; rectToFill.y = y;rectToFill.w = w; rectToFill.h = h; SDL_RenderFillRect(WindowRenderer,&rectToFill);
+	SDL_Rect rectToFill = {x,y,w,h}; SDL_RenderFillRect(WindowRenderer,&rectToFill);
 }
 
-SDL_Surface* loadBMP(char* filePath){
+// Surface/Texture related functions
+SDL_Surface* loadImage(char* filePath){
 	SDL_Surface* optimizedSurface = NULL;
-	SDL_Surface* loadedSurface = SDL_LoadBMP(filePath);
+	SDL_Surface* loadedSurface = IMG_Load(filePath);
 	if(loadedSurface == NULL){
-		printf("unable to load image %s! SDL error: %s\n", filePath, SDL_GetError());
+		printf("unable to load image %s! SDL error: %s\n", filePath, IMG_GetError());
 		return NULL;
 	}else{
 		optimizedSurface = SDL_ConvertSurface(loadedSurface,WindowSurface->format,0);
@@ -129,7 +131,6 @@ SDL_Surface* loadBMP(char* filePath){
 	}
 	return optimizedSurface;
 }
-
 SDL_Texture* loadTexture(char* filePath){
 	SDL_Texture* newTexture = NULL;
 	SDL_Surface* loadedSurface = IMG_Load(filePath);
@@ -146,7 +147,6 @@ SDL_Texture* loadTexture(char* filePath){
 	}
 	return newTexture;
 }
-
 void renderTexture(SDL_Texture* textureToRender, SDL_Rect* textureRect, SDL_Rect* textureSectionRect){
 	SDL_RenderCopy(WindowRenderer,textureToRender,textureSectionRect,textureRect);
 }
@@ -159,55 +159,143 @@ SDL_Point getTextureSize(SDL_Texture* textureToMeasure){
 	return textureSize;
 }
 
+// Trigonometric functions
 double angle_to(double ax, double ay, double bx, double by){return atan2((by-ay),(bx-ax));}
 double to_rad(double theta){return theta/180*PI;}
 double to_deg(double theta){return theta/PI*180;}
+double lerp(double a, double b, double t){return a+((b-a)*t);}
 
+// Player related functions
+void changeAnimState(int newAnimState){if(player.animState == newAnimState)return;animations[player.animState]->animFrame = 0; player.animState = newAnimState;}
 void renderPlayer(){
-	if(player.animState == 0){
-		SDL_Point size = getTextureSize(walkTexture);
-		SDL_Point scaledSize = {size.x/6*4,size.y*4};
-		renderTextureEx(walkTexture,&((SDL_Rect){SCREEN_W/2-scaledSize.x/2,SCREEN_H/2-scaledSize.y/2,scaledSize.x,scaledSize.y}),&((SDL_Rect){size.x/6*player.animFrame,0,size.x/6,size.y}),0.0,NULL,SDL_FLIP_NONE);
-	}
-}
-
-void render(){
-	renderPlayer();
-}
-
-void update(){
+	// Sizes and stuff
+	Animation* currAnim = animations[player.animState];
+	SDL_Point textureSize = currAnim->textureSize;
+	float textureCellWidth = textureSize.x/currAnim->frames;
+	SDL_Point plSize = {textureCellWidth*2,textureSize.y*2};
+	SDL_Point plCenter = currAnim->center;
 	
+	// Rotate player to point to mouse
+	int mouseX; int mouseY; SDL_GetMouseState(&mouseX,&mouseY);
+	player.angle = to_deg(angle_to((double)player.x-plCenter.x*2+(plCenter.x*2),(double)player.y-plCenter.y*2+(plCenter.y*2),(double)mouseX,(double)mouseY));
+	
+	// Render player with rotation and flipping
+	renderTextureEx(
+		currAnim->texture,
+		&((SDL_Rect){player.x-plCenter.x*2,player.y-plCenter.y*2,plSize.x,plSize.y}),
+		&((SDL_Rect){currAnim->animFrame*round(textureCellWidth),0,textureCellWidth,textureSize.y}),
+		player.angle,
+		&((SDL_Point){plCenter.x*2,plCenter.y*2}),
+		SDL_FLIP_NONE
+	);
+}
+
+void render(double deltaTime){
+	// render player
+	renderPlayer();
+	
+	// render all map items (WIP)
+}
+
+void updateAnimFrames(Uint32 currTicks, Animation* currAnim, unsigned int frameRate){
+	if(currTicks-player.lastFrame > frameRate){
+		currAnim->animFrame++;
+		if(currAnim->animFrame >= currAnim->frames) currAnim->animFrame = 0;
+		player.lastFrame = currTicks;
+	}
+}void update(double deltaTime){
+	// change animations based on movement
+	if(player.animState == 0 && (player.velX != 0.0 || player.velY != 0.0) && player.sprint)changeAnimState(1);
+	else if(player.animState == 1 && (!player.sprint || (player.velX == 0.0 && player.velY == 0.0)))changeAnimState(0);
+	
+	// move player
+	player.x += player.velX*(1+player.sprint*0.75)*deltaTime; player.y += player.velY*(1+player.sprint*0.75)*deltaTime;
+	
+	// update animations
+	Uint32 currTicks = SDL_GetTicks();
+	Animation* currAnim = animations[player.animState];
+	if(currAnim->frames > 1){
+		if(player.animState <= 1 && (player.velX != 0.0 || player.velY != 0.0)){updateAnimFrames(currTicks,currAnim,100);return;}
+		if(player.animState == 4){updateAnimFrames(currTicks,currAnim,75);return;}
+		if(player.animState == 8 && player.sprint /* change with reload timer or wtv */){updateAnimFrames(currTicks,currAnim,75);return;}
+	}
+	// ignore frame
+	animations[player.animState]->animFrame = 0;
+	player.lastFrame = currTicks;
 }
 
 void loadMedia(){
-	walkTexture = loadTexture("assets/player_walk_strip6.png");
-	runTexture = loadTexture("assets/player_run_strip6.png");
-	handgunTexture = loadTexture("assets/player_9mmhandgun.png");
-	chainGunTexture = loadTexture("assets/player_chaingun.png");
-	chainGunShootTexture = loadTexture("assets/player_chaingun_shoot_strip2.png");
-	hkTexture = loadTexture("assets/player_hk_stand.png");
-	hkRecoilTexture = loadTexture("assets/player_hk_recoil.png");
-	flamethrowerTexture = loadTexture("assets/player_flamethrower.png");
-	shotgunTexture = loadTexture("assets/player_pumgun_reload_strip5.png");
+	// load all animation frames
+	for(int i = 0; i < sizeof(animations)/sizeof(Animation*); i++){
+		animations[i]->texture = loadTexture(animations[i]->filePath);
+		if(animations[i]->texture != NULL){
+			animations[i]->textureSize = getTextureSize(animations[i]->texture);
+			printf("%s -> W: %d, H: %d",animations[i]->filePath,animations[i]->textureSize.x,animations[i]->textureSize.y);
+			if(animations[i]->frames > 1){
+				printf(" || Cell size: %d",animations[i]->textureSize.x/animations[i]->frames);
+			}printf("\n");
+		}
+	}
 }
 
 int main(int argv, char* args[]){
+	// initialize randomness
 	srand(time(NULL));
 	
 	if(!init()){return -1;}
 	
+	// load all assets
 	loadMedia();
 	
+	// initialize deltaTime
+	Uint64 NOW = SDL_GetPerformanceCounter();
+	Uint64 LAST = 0;
+	double deltaTime = 0;
+	
 	while(running){
+		// Update delta time
+		LAST = NOW;
+		NOW = SDL_GetPerformanceCounter();
+		deltaTime = (double)((NOW-LAST)*1000/(double)SDL_GetPerformanceFrequency());
+		
+		// Handle events
 		while(SDL_PollEvent(&event) != 0){
 			if(event.type == SDL_QUIT){
 				running = false;
 			}if(event.type == SDL_KEYDOWN){
 				switch(event.key.keysym.sym){
 					case SDLK_w:
+						player.velY = -0.2;
+						break;
+					case SDLK_s:
+						player.velY = 0.2;
+						break;
+					case SDLK_a:
+						player.velX = -0.2;
+						break;
+					case SDLK_d:
+						player.velX = 0.2;
+						break;
+					case SDLK_1:
+						if(player.animState == 2){changeAnimState(0);}else{changeAnimState(2);}
 						break;
 				}
+			}if(event.type == SDL_KEYUP){
+				switch(event.key.keysym.sym){
+					case SDLK_w:
+						if(player.velY < 0)player.velY = 0.0;
+						break;
+					case SDLK_s:
+						if(player.velY > 0)player.velY = 0.0;
+						break;
+					case SDLK_a:
+						if(player.velX < 0)player.velX = 0.0;
+						break;
+					case SDLK_d:
+						if(player.velX > 0)player.velX = 0.0;
+				}
 			}
+			player.sprint = keyboard[SDL_SCANCODE_LSHIFT];
 		}
 		
 		// clear renderer
@@ -215,10 +303,10 @@ int main(int argv, char* args[]){
 		SDL_RenderClear(WindowRenderer);
 		
 		// update physics or type shi
-		update();
+		update(deltaTime);
 		
 		// render screen elements
-		render();
+		render(deltaTime);
 		
 		// update renderer
 		SDL_RenderPresent(WindowRenderer);
