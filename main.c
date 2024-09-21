@@ -26,6 +26,10 @@ SDL_Renderer* WindowRenderer;
 SDL_Event event;
 const Uint8* keyboard;
 
+// Fonts
+TTF_Font* gFont;
+SDL_Texture* gTextTexture;
+
 // all structs
 typedef struct {
 	char* filePath;
@@ -76,6 +80,17 @@ int init(){
 			printf("SDL Window Surface error: %s\n",SDL_GetError());
 			return false;
 		}else{
+			//Initialize PNG Loading
+			int imageFlags = IMG_INIT_PNG;
+			if(!(IMG_Init(imageFlags) & imageFlags)){
+				printf("SDL_image initializing failed, error: %s\n",IMG_GetError());
+				return false;
+			}
+			//Initialize SDL_ttf
+			if(TTF_Init() == -1){
+				printf("SDL_ttf initializing failed, error %s\n",TTF_GetError());
+				return false;
+			}
 			// Get Renderer
 			WindowRenderer = SDL_CreateRenderer(Window,-1,SDL_RENDERER_ACCELERATED);
 			if(WindowRenderer == NULL){
@@ -99,11 +114,16 @@ void quit(){
 		animations[i]->texture = NULL;
 	}
 	
+	TTF_CloseFont(gFont);
+	gFont = NULL;
+	
 	SDL_DestroyRenderer(WindowRenderer);
 	SDL_DestroyWindow(Window);
 	WindowRenderer = NULL;
 	Window = NULL;
 	
+	TTF_Quit();
+	IMG_Quit();
 	SDL_Quit();
 }
 
@@ -146,6 +166,32 @@ SDL_Texture* loadTexture(char* filePath){
 		SDL_FreeSurface(loadedSurface);
 	}
 	return newTexture;
+}
+SDL_Texture* loadText(char* str, SDL_Color textColor){
+	SDL_Texture* textTexture = NULL;
+	SDL_Surface* textSurface = TTF_RenderText_Solid(gFont,str,textColor);
+	if(textSurface == NULL){
+		printf("Unable to render text surface! SDL_ttf error: %s\n",TTF_GetError());
+	}else{
+		textTexture = SDL_CreateTextureFromSurface(WindowRenderer,textSurface);
+		if(textTexture == NULL){
+			printf("Unable to create texture from surface! SDL error: %s",SDL_GetError());
+		}
+		SDL_FreeSurface(textSurface);
+	}
+	return textTexture;
+}
+int loadFont(char* filePath, int size){
+	TTF_Font* newFont = TTF_OpenFont(filePath,size);
+	if(newFont == NULL){
+		printf("Failed to load %s! SDL_ttf error: %s!\n",filePath,TTF_GetError());
+		return false;
+	}else{
+		gFont = newFont;
+		TTF_CloseFont(newFont);
+		newFont = NULL;
+		return true;
+	}
 }
 void renderTexture(SDL_Texture* textureToRender, SDL_Rect* textureRect, SDL_Rect* textureSectionRect){
 	SDL_RenderCopy(WindowRenderer,textureToRender,textureSectionRect,textureRect);
@@ -195,6 +241,7 @@ void render(double deltaTime){
 	renderPlayer();
 	
 	// render all map items (WIP)
+	renderTexture(gTextTexture,&((SDL_Rect){100,100,400,26}),NULL);
 }
 
 void updateAnimFrames(Uint32 currTicks, Animation* currAnim, unsigned int frameRate){
@@ -236,6 +283,8 @@ void loadMedia(){
 			}printf("\n");
 		}
 	}
+	//load text
+	gTextTexture = loadText("assets/arial.ttf",(SDL_Color){255,255,255});
 }
 
 int main(int argv, char* args[]){
@@ -246,6 +295,7 @@ int main(int argv, char* args[]){
 	
 	// load all assets
 	loadMedia();
+	loadFont("assets/arial.ttf",26);
 	
 	// initialize deltaTime
 	Uint64 NOW = SDL_GetPerformanceCounter();
